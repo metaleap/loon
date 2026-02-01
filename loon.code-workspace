@@ -3,6 +3,8 @@
 		{
 			"path": "."
 		},
-	],
-	"settings": { }
+		{
+			"path": "../../../vs/vscode-loon"
+		},
+	]
 }
