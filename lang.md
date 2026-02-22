@@ -126,13 +126,15 @@ my_function = function() end
 my_function()
 ```
 
+If empty, the params parens (`()`) can actually be omitted.
+
 The body of the function can either be one statement placed directly after the
 arrow, or it can be any number of statements indented on the following lines:
 
 ```go
-func_a := -> print("hello world")
+func_a := () -> print("hello world")
 
-func_b := ->
+func_b := () ->
   value := 100
   print("The value:", value)
 ```
@@ -318,10 +320,10 @@ some_array := [ 1, 2.0, 3.4, 5 ]
 // [ Int | Float ]
 
 some_tuple_of_4 := { 123, 4.56, 'seven', [8, 9.0, `10`] }
-// { Int, Float, Str, [Int | Float] }
+// { Int, Float, Str, [Int | Float | Str] }
 
-some_dict_aka_map := { one: 1, "two": 2.0, `the third`: '3' }
-// { Str : Int | Float | Str }
+some_dict_aka_map := { one: 1, "two": 2.0, `the third`: '3', true: "4" }
+// { Str|Bool : Int|Float|Str }
 ```
 
 Yields Lua:
@@ -332,14 +334,14 @@ local some_tuple_of_4 = { 123, 4.56, "seven", {8, 9.0, "10"} }
 local some_dict_aka_map = { one = 1, two = 2.0, ["the third"] = "3" }
 ```
 
-If you are constructing a table out of variables and wish the keys to be the
-same as the variable names, then the `:` prefix operator can be used:
+If you are constructing a dict out of variables and wish the keys to be the
+same as the variable names, then the `:` suffix operator can be used:
 
 ```go
 hair := "golden"
 height := 200
-person := { :hair, :height, shoe_size: 40 }
-print_table({ :hair, :height })
+person := { hair: , height: , shoe_size: 40 }
+print_table({ hair: , height: })
 ```
 
 Yields Lua:
@@ -358,7 +360,7 @@ print_table({
 })
 ```
 
-If you want the key of a field in the table to to be result of an expression,
+If you want the key of a field in the dict to to be result of an expression,
 then you can write it without `[` and `]`, unlike in Lua. You can also use a
 string literal directly as a key, leaving out the square brackets. This is
 useful if your key has any special characters.
@@ -394,7 +396,11 @@ Yields Lua:
 print("I am " .. tostring(math.random() * 100) .. "% sure.")
 ```
 
-## Control flow via value-as-unary-operator-style-callee and function expressions
+## Control flow
+
+Loops utilize the iterable (for for-style loops) or condition (for
+while-style loops) as a callable unary operator, called with a function
+expression as its right-hand-side operand.
 
 ### For-style loops
 
@@ -506,13 +512,13 @@ For-style loops at the end of a function body are not accumulated into a table
 for a return value (instead the function will return `nil`), unless prefixed
 with a `<-` return statement.
 
-This is done to avoid the needless creation of tables for functions that don't
+This is to avoid the needless creation of arrays for functions that don't
 need to return the results of the loop.
 
 ### While-style loops
 
 are written quite similarly, with the boolean being the unary callee and the
-function receiving zero args:
+loop-body function receiving zero args:
 
 ```go
 i := 10
@@ -520,3 +526,314 @@ i > 0 () ->
   print(i)
   i -= 1
 ```
+
+The zero-arity params parens `()` can actually be omitted, as long as the
+condition expression also isn't parens-enclosed:
+
+```go
+i := 10
+i > 0 ->
+  print(i)
+  i -= 1
+```
+
+
+### Iterations filtering
+
+This example prints just the odd numbers among `[1 ... 6]`:
+
+```go
+my_numbers := [1 ... 6]
+my_numbers[_ % 2 == 1] print
+// alternatively, using the `~>` continue operator for more fine-grained control flow:
+my_numbers (n) -> (n%2 == 1) ? print(n) : ~>
+```
+
+The former makes use of a slicing syntax sugar that ordinarily constructs a new
+filtered array, except when directly expressing an unary control-flow callee.
+
+While user-declared identifiers must never be prefixed with `_`,
+any identifiers encountered that *are* so prefixed expand the surrounding
+expression receiving it (or them) into a function: `_ + 1` desugars into
+`(__a0__) -> __a0__ + 1` for example, or to demonstrate a slightly more
+complex (albeit unrealistic) example:
+
+```go
+print((_first + " " + string.upper(_last))("Donald", "Duck"))
+
+// desugars into basically:
+print( ((__a0__, __a1__) -> (__a0__ + " " + string.upper(__a1__))) ("Donald", "Duck") )
+```
+
+## Conditionals
+
+The ternary operator `? :` covers the then-case `?` and the else-case `:`.
+
+```go
+have_coins := false
+have_coins ? print("Got coins") : print("No coins")
+// alternatively:
+print(have_coins ? "Got coins" : 'No coins')
+```
+
+The else branch is optional whenever the conditional is used as a
+statement instead of expression.
+
+```go
+(user := db.find_user(userId)) ? print(user.name)
+```
+
+Using declaration expressions in the condition makes it available only
+to the then branch:
+
+```go
+(user := db.find_user(userId))
+  ? print(user.name)
+  : print("no such user: '${userId}'")
+```
+
+## Switch
+
+The switch statement is shorthand for writing a series of if statements that
+check against the same value. Note that the value is only evaluated once. Like
+if statements, switches can have an else block to handle no matches. Comparison
+is done with the `==` operator. This syntax sugar utilizes our "unary-operator-
+style call" form with the cases expressed as a dict:
+
+```go
+name := "Dan"
+name { // all newlines are optional, just for clarity.
+  // simple case:
+  "Robert":
+    print("You are Robert"),
+  // multiple values:
+  "Dan":
+  "Daniel":
+    print("Your name, it's Dan"),
+  // also multiple values:
+  "Bob", "Rob":
+    print(`Another Robert`)
+  // via predicate function as key:
+  #_ > 3 && string.lower(_)[..3] == 'dan':
+    print('You danish?'),
+  // default fallback, any `_`-prefixed ident as key:
+  _:
+    print("Unhandled name '${_}'"),
+}
+```
+
+The else branch is optional whenever the switch is used as a
+statement instead of expression.
+
+## Types
+
+Declarations whose names start with an upper-case character declare types:
+
+```go
+ArrayOfNumbers := [Int | Float]
+```
+
+Built-in primitive atomic types are `Bool`, `Int`, `Float`, `Str`.
+Primitive compound types are array via `[]` enclosure, tuple via `{ T0, ..., Tn }`,
+and dicts via `{ TKey0: TVal0, ..., TKeyN: TVal:N }`-like declarations.
+
+### Struct aka record types
+
+Declaring a struct aka record type:
+
+```go
+// type decl
+Person := { age: Int, firstName: Str, lastName: Str }
+
+// usage
+me := Person { age: 123, firstName: "Donald", lastName: "Duck" }
+
+print(`Person ${me.firstName} ${me.lastName} is ${me.age} years old.`)
+```
+
+Usage for namespacing and OOP-like instance methods:
+
+```go
+Person := {
+  // same instance fields as above
+  age: Int, firstName: Str, lastName: Str,
+
+  aStaticField: "Namespaced const",
+  aStaticMethod: () ->
+    print("Call made to Person.aStaticMethod()"),
+
+  anInstMethod: () ->
+    print("I am ${.firstName} ${.lastName}."),
+}
+
+me := Person
+  { age: 123, firstName: "Donald", lastName: "Duck" }
+Person.aStaticMethod()
+me.anInstMethod()
+```
+
+Embedding for composition-instead-of-inheritance:
+
+```go
+Animal := {
+  numLegs: Int,
+  isWinged: () -> .numLegs < 4,
+  domesticated: Bool,
+  str: () ->
+    '${.numLegs}-legged${
+      .domesticated ? ", domesticated" : ""
+     }'
+}
+Pet := { // every Pet is also an Animal:
+  _: Animal { domesticated: true },
+  name: Str,
+  needsWalking: Bool = false, // or alternatively:
+  // needsWalking = false,
+  str: () -> 'Pet named "${.name}":
+    - needs walking: ${.needsWalking ? "yes" : "no"}
+    - ${.Animal.str()}'
+}
+Cat := {
+  _: Pet { needsWalking: false, numLegs: 4 },
+  lovesKeyboards: Bool,
+}
+Dog := {
+  _: Pet { needsWalking: true, numLegs: 4 },
+  chasesMailMen: Bool,
+}
+
+myCat := Cat { name: 'Felix' }
+myDog := Dog { name: 'Rufus' }
+print(myCat.str())
+dogS := myDog.str // same as `dogS := ()->myDog.str()`
+print(dogS())
+```
+
+### Standalone type method declarations
+
+Methods defined inside bracketed struct type literals (like the above
+examples) lose some of the significant-whitespace lightness, especially
+longer ones. But any type can be extended with methods, via `.`-dotted
+`:=` declarations allowing no subsequent update assignments (or multiple
+name-clashing co-declarations).
+
+```go
+Cat.isLikelyChallenging := () -> .lovesKeyboards
+Dog.isLikelyChallenging := () -> .chasesMailMen
+
+Int.incr := () -> 1 + .
+Int.decr := () -> . - 1
+Float.recp := () -> . / 1.0
+
+Any.str := () -> tostring(.)
+```
+
+(Also shown above is that the standalone `.` represents the instance-method's
+actual instance argument, which other languages call `this` or `self`).
+
+Although such declarations allow no update assignments, you may of course
+express mutable (static or instance) methods by use of function-typed fields
+(optionally with a default function value).
+
+The `.` instance can also be used in a standalone function, making its usage
+valid only in method contexts:
+
+```go
+myStr := () -> tostring(.)
+Any.str := myStr // OK
+myStr() // compile-time error
+123.str() // OK
+```
+
+## Interfaces aka traits
+
+```go
+Expr := {
+    str: () -> Str,
+}
+Parser := {
+    parse: (Str) -> Expr ?! ParseError,
+}
+
+test := (p: Parser) ->
+  expr := p.parse('1 + 2')
+  print(expr.str()) // only reached if no error above
+
+test(someImpl) ?! (err) -> print('Error: ${err}$')
+```
+
+## Destructuring
+
+Basically similar to TypeScript:
+
+```go
+[one, two, ...rest] := [1, 2.0, "3"]
+{first, _, last} :=
+  { first: 'Donald', middle: 'F.', last: 'Duck' }
+{ zStr, ...zNums, zBool } := { "", 0, 0.0, false }
+```
+
+Also for func params, supporting the same variations as declarations do:
+
+```go
+fn := ({a,b}) -> a + b
+sum := fn({a:1, b:2})
+same := fn({ 1, 2 })
+```
+
+Re-assignment formulations like the below desugar into a more efficient
+series of subsequent field assignment statements, but are occasionally
+smoother to write in situations of two-or-more such field updates:
+
+```go
+obj := { one: 1, two: 2.0 } // initial decl
+obj = { ...obj, two: '2' } // standard destructuring
+// but can go even shorter, alternatively:
+obj .= { two: '2' }
+```
+
+## Let-style block scope
+
+```go
+{ s1 : "Hello", s2 : " World" } =>
+  print("Original: ", s1+s2)
+  print("Upper: ", string.upper(s1+s2))
+```
+
+Desugars into:
+
+```go
+(({s1, s2}) ->
+  print("Original: ", s1+s2)
+  print("Upper: ", string.upper(s1+s2))
+)({ s1 : "Hello", s2 : " World" })
+```
+
+The `=>` sugar-only binary operator expects a dict form as the LHS operand
+and a function body (one or more expressions) as the RHS operand.
+It generates the lambda's arguments list from all the free variables in
+the RHS code block, and the enclosing call form passes the LHS dict
+as-is.
+
+Absent `=>`, this could also be expressed using basic function
+definition and call-form syntax, ie. more parens but fewer braces:
+
+```go
+((s1="Hello", s2=" World") ->
+  print("Original: ", s1+s2)
+  print("Upper: ", string.upper(s1+s2))
+)()
+```
+
+The unary form of the `=>` operator allows a simple code block with
+local scope:
+
+```go
+=>
+  foo := 12.34
+  print(43.21 - foo) // prints `30.87`
+print(43.21 - foo) // compiler error: undeclared identifier 'foo'
+```
+
+The desugaring logic is as above, except the lambda has no params and
+its call has no args.
