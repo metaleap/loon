@@ -16,12 +16,12 @@ first indent it encountered in the file.
 
 ## Variable declaration and assignment
 
-Via tuples enclosed by `{` and `}`, you can assign or declare-and-assign
+Via tuples enclosed by `(` and `)`, you can assign or declare-and-assign
 multiple names and values at once just like Lua:
 
 ```go
 hello := "world"
-{a,b,c} := {1, 2, 3}
+(a,b,c) := (1, 2, 3)
 hello = 123 // uses the existing variable
 ```
 
@@ -217,11 +217,11 @@ sum = function(x, y)
 end
 ```
 
-Via tuples enclosed by `{` and `}`, functions can return multiple values:
+Via tuples enclosed by `(` and `)`, functions can return multiple values:
 
 ```go
-mystery := (x, y) -> {x + y, x - y}
-{a, b} := mystery(10, 20)
+mystery := (x, y) -> (x + y, x - y)
+(a, b) := mystery(10, 20)
 ```
 
 Yields Lua:
@@ -319,7 +319,7 @@ tuple types, dictionary / hashmap / hashtable types, structs / records, etc.
 some_array := [ 1, 2.0, 3.4, 5 ]
 // [ Int | Float ]
 
-some_tuple_of_4 := { 123, 4.56, 'seven', [8, 9.0, `10`] }
+some_tuple_of_4 := ( 123, 4.56, 'seven', [8, 9.0, `10`] )
 // { Int, Float, Str, [Int | Float | Str] }
 
 some_dict_aka_map := { one: 1, "two": 2.0, `the third`: '3', true: "4" }
@@ -335,12 +335,12 @@ local some_dict_aka_map = { one = 1, two = 2.0, ["the third"] = "3" }
 ```
 
 If you are constructing a dict out of variables and wish the keys to be the
-same as the variable names, then the `:` suffix operator can be used:
+same as the variable names, just the standalone name will suffice:
 
 ```go
 hair := "golden"
 height := 200
-person := { hair: , height: , shoe_size: 40 }
+person := { hair , height , shoe_size: 40 }
 print_table({ hair: , height: })
 ```
 
@@ -410,10 +410,10 @@ callee for iteration, like here below) construct respectively
 `[10,11,12,13,14,15,16,17,18,19,20]` and `[1,3,5,7,9,11,13,15]`:
 
 ```go
-10...20 (i) -> // will call print 11 times with the values 10 through 20
+10...20 (i) -> // will call print 11x with the values 10 through 20
   print(i)
 
-1...15\2 (k) -> // an optional step provided
+1...15\2 (k) -> // will print 8x, only the odd numbers
   print(k)
 
 some_dict (key, value) ->
@@ -480,7 +480,7 @@ items (each) -> print(each) // same as `items print`
 
 A for-style loop can also be used as an expression. The last statement in the body of
 the for loop is coerced into an expression and appended to an accumulating
-array.
+array, if the for-style loop expression is assigned, passed, or explicitly returned.
 
 Doubling every even number:
 
@@ -509,8 +509,8 @@ end
 ```
 
 For-style loops at the end of a function body are not accumulated into a table
-for a return value (instead the function will return `nil`), unless prefixed
-with a `<-` return statement.
+for a return value (instead the function will return `nil`), unless explicitly
+prefixed with a `<-` return statement.
 
 This is to avoid the needless creation of arrays for functions that don't
 need to return the results of the loop.
@@ -537,6 +537,9 @@ i > 0 ->
   i -= 1
 ```
 
+While-style loops can also be used as an expression (ie. assigned, passed,
+or *explicitly* `<-`-returned), in which case they similarly accumulate a
+result array holding each iteration's result.
 
 ### Iterations filtering
 
@@ -567,63 +570,61 @@ print( ((__a0__, __a1__) -> (__a0__ + " " + string.upper(__a1__))) ("Donald", "D
 
 ## Conditionals
 
-The ternary operator `? :` covers the then-case `?` and the else-case `:`.
+The ternary operator `? :` has the then-case following `?` and the
+else-case following `:`.
+
+The condition itself is always a `Bool` or a `nil`able reference. All
+other values are neither truthy nor falsy.
 
 ```go
 have_coins := false
 have_coins ? print("Got coins") : print("No coins")
-// alternatively:
+// alternatively, same outcome:
 print(have_coins ? "Got coins" : 'No coins')
 ```
 
-The else branch is optional whenever the conditional is used as a
-statement instead of expression.
+The `:` else branch is optional whenever the conditional is used as a
+statement instead of expression (ie. is not stored, passed or returned).
 
 ```go
-(user := db.find_user(userId)) ? print(user.name)
-```
-
-Using declaration expressions in the condition makes it available only
-to the then branch:
-
-```go
-(user := db.find_user(userId))
-  ? print(user.name)
-  : print("no such user: '${userId}'")
+// somewhere prior was defined the nilable `obj`; now:
+obj ? print(obj.field)
 ```
 
 ## Switch
 
-The switch statement is shorthand for writing a series of if statements that
-check against the same value. Note that the value is only evaluated once. Like
-if statements, switches can have an else block to handle no matches. Comparison
-is done with the `==` operator. This syntax sugar utilizes our "unary-operator-
-style call" form with the cases expressed as a dict:
+The switch statement-or-expression is shorthand for writing a series of if
+statements that check against the same value. Note that the value is only
+evaluated once. Like if statements, switches can have an else block to handle
+no matches. Comparison is done with the `==` operator.
+
+The switch statement-or-expression is syntax sugar reusing the `...` operator
+with the scrutinee in LHS operand position and a dict form (in this example,
+the indent-based, ie. brackets-and-commas-free one) of cases in the RHS operand
+position:
 
 ```go
 name := "Dan"
-name { // all newlines are optional, just for clarity.
-  // simple case:
+name ...
   "Robert":
-    print("You are Robert"),
-  // multiple values:
+    print("You are Robert")
   "Dan":
   "Daniel":
-    print("Your name, it's Dan"),
-  // also multiple values:
+    print("Your name...")
+    print("...it's Dan!")
   "Bob", "Rob":
     print(`Another Robert`)
-  // via predicate function as key:
   #_ > 3 && string.lower(_)[..3] == 'dan':
-    print('You danish?'),
-  // default fallback, any `_`-prefixed ident as key:
+    print('You danish?')
   _:
-    print("Unhandled name '${_}'"),
-}
+    print("Unhandled name '${_}'")
 ```
 
 The else branch is optional whenever the switch is used as a
 statement instead of expression.
+
+As per the full destructuring capabilities, scrutinees and their test cases can
+also be array, dict or tuple literals.
 
 ## Types
 
@@ -651,7 +652,25 @@ me := Person { age: 123, firstName: "Donald", lastName: "Duck" }
 print(`Person ${me.firstName} ${me.lastName} is ${me.age} years old.`)
 ```
 
-Usage for namespacing and OOP-like instance methods:
+The indent-based (braces-and-commas-free) dict form is also supported:
+
+```go
+Person :=
+  age: Int
+  firstName: Str
+  lastName: Str
+
+me := Person
+  age: 123
+  firstName: "Donald"
+  lastName: "Duck"
+```
+
+(The two supported dict syntax forms, namely braces-and-commas and
+indent-based, are generally interchangable and can be freely chosen to taste,
+across *all* use-cases of dict-form literals, not just struct types).
+
+#### Usage for namespacing and OOP-like instance methods:
 
 ```go
 Person := {
@@ -664,6 +683,9 @@ Person := {
 
   anInstMethod: () ->
     print("I am ${.firstName} ${.lastName}."),
+
+  another: () ->
+    .anInstMethod()
 }
 
 me := Person
@@ -672,32 +694,39 @@ Person.aStaticMethod()
 me.anInstMethod()
 ```
 
-Embedding for composition-instead-of-inheritance:
+Note: instance methods access instance members via `.memberName`, and the
+instance itself (in many other languages called `this` or `self`) via a
+simple standalone `.` expression.
+
+Hence, "static methods" are simply those with no such expressions. These
+are `.`-invoked on the type's name instead of an instance value.
+
+#### Embedding for composition-instead-of-inheritance:
 
 ```go
-Animal := {
-  numLegs: Int,
-  isWinged: () -> .numLegs < 4,
-  domesticated: Bool,
+Animal := // this will be embedded in the below `Pet`
+  numLegs: Int
+  isWinged: () -> .numLegs < 4
+  domesticated: Bool
   str: () ->
     '${.numLegs}-legged${
       .domesticated ? ", domesticated" : ""
      }'
-}
-Pet := { // every Pet is also an Animal:
-  _: Animal { domesticated: true },
-  name: Str,
-  needsWalking: Bool = false, // or alternatively:
-  // needsWalking = false,
+
+Pet := // every Pet is also an Animal:
+  _: Animal { domesticated: true }
+  name: Str
+  needsWalking: Bool = false // or alternatively:
+  // needsWalking = false
   str: () -> 'Pet named "${.name}":
     - needs walking: ${.needsWalking ? "yes" : "no"}
     - ${.Animal.str()}'
-}
-Cat := {
-  _: Pet { needsWalking: false, numLegs: 4 },
-  lovesKeyboards: Bool,
-}
-Dog := {
+
+Cat := // embeds Pet
+  _: Pet { needsWalking: false, numLegs: 4 }
+  lovesKeyboards: Bool
+
+Dog := { // also embeds Pet
   _: Pet { needsWalking: true, numLegs: 4 },
   chasesMailMen: Bool,
 }
@@ -711,38 +740,31 @@ print(dogS())
 
 ### Standalone type method declarations
 
-Methods defined inside bracketed struct type literals (like the above
-examples) lose some of the significant-whitespace lightness, especially
-longer ones. But any type can be extended with methods, via `.`-dotted
-`:=` declarations allowing no subsequent update assignments (or multiple
-name-clashing co-declarations).
+Methods defined inside bracketed struct type literals (like some of the
+above examples) lose some of the significant-whitespace dev UX, especially
+longer ones. But any type (not just structs) declared in the same package can
+be extended outside its declaration (but inside the same package) with further
+methods, via `.`-dotted `:=` declarations like so:
 
 ```go
-Cat.isLikelyChallenging := () -> .lovesKeyboards
-Dog.isLikelyChallenging := () -> .chasesMailMen
-
-Int.incr := () -> 1 + .
-Int.decr := () -> . - 1
-Float.recp := () -> . / 1.0
-
-Any.str := () -> tostring(.)
+Cat.isLikelyChallenging := () ->
+  .lovesKeyboards
+Dog.isLikelyChallenging := () ->
+  .chasesMailMen
 ```
 
-(Also shown above is that the standalone `.` represents the instance-method's
-actual instance argument, which other languages call `this` or `self`).
-
-Although such declarations allow no update assignments, you may of course
-express mutable (static or instance) methods by use of function-typed fields
-(optionally with a default function value).
+Like type declarations, such (also type-level) declarations allow no subsequent
+update assignments, but of course one can still express "mutable methods" by use
+of function-typed fields (optionally with a default function value).
 
 The `.` instance can also be used in a standalone function, making its usage
 valid only in method contexts:
 
 ```go
 myStr := () -> tostring(.)
-Any.str := myStr // OK
+MyStruct.str := myStr // OK
 myStr() // compile-time error
-123.str() // OK
+(MyStruct {}).str() // OK
 ```
 
 ## Interfaces aka traits
@@ -759,18 +781,21 @@ test := (p: Parser) ->
   expr := p.parse('1 + 2')
   print(expr.str()) // only reached if no error above
 
-test(someImpl) ?! (err) -> print('Error: ${err}$')
+test(myParserImpl) ?! (err) ->
+  print('Error: ${err}$')
 ```
 
 ## Destructuring
 
-Basically similar to TypeScript:
+Basically similar to EcmaScript:
 
 ```go
-[one, two, ...rest] := [1, 2.0, "3"]
+[one, two, ...rest] := [1, 2.0, "3", '4']
+// one is now 1, two is 2.0, rest is ["3","4"]
 {first, _, last} :=
   { first: 'Donald', middle: 'F.', last: 'Duck' }
-{ zStr, ...zNums, zBool } := { "", 0, 0.0, false }
+( zStr, ...zNums, zBool ) := ( "", 0, 0.0, false )
+// zStr is now "", zBool is false, zNums is (0, 0.0)
 ```
 
 Also for func params, supporting the same variations as declarations do:
@@ -778,62 +803,42 @@ Also for func params, supporting the same variations as declarations do:
 ```go
 fn := ({a,b}) -> a + b
 sum := fn({a:1, b:2})
-same := fn({ 1, 2 })
 ```
 
-Re-assignment formulations like the below desugar into a more efficient
-series of subsequent field assignment statements, but are occasionally
-smoother to write in situations of two-or-more such field updates:
+Using destructuring to assign multiple field values without multi-line
+repetetiveness:
 
 ```go
-obj := { one: 1, two: 2.0 } // initial decl
-obj = { ...obj, two: '2' } // standard destructuring
-// but can go even shorter, alternatively:
-obj .= { two: '2' }
+obj := { one: 1, two: 2, three: 3 } // initial decl
+obj = { ...obj, two: '2', three: 3.0 } // field writes
+// but there's syntax sugar for the above:
+obj .= { two: '2', three: 3.0 }
 ```
 
 ## Let-style block scope
 
+A tuple form of declaration expressions used in unary operator
+callee position, followed by a code-block in RHS operand position...
+
 ```go
-{ s1 : "Hello", s2 : " World" } =>
-  print("Original: ", s1+s2)
-  print("Upper: ", string.upper(s1+s2))
+(s := "Hola", up := string.upper(s))
+  print("Original: ", s)
+  print("Upper: ", up)
 ```
 
-Desugars into:
+...desugars into:
 
 ```go
-(({s1, s2}) ->
-  print("Original: ", s1+s2)
-  print("Upper: ", string.upper(s1+s2))
-)({ s1 : "Hello", s2 : " World" })
-```
-
-The `=>` sugar-only binary operator expects a dict form as the LHS operand
-and a function body (one or more expressions) as the RHS operand.
-It generates the lambda's arguments list from all the free variables in
-the RHS code block, and the enclosing call form passes the LHS dict
-as-is.
-
-Absent `=>`, this could also be expressed using basic function
-definition and call-form syntax, ie. more parens but fewer braces:
-
-```go
-((s1="Hello", s2=" World") ->
-  print("Original: ", s1+s2)
-  print("Upper: ", string.upper(s1+s2))
+((s = "Hola", up = string.upper(s)) ->
+  print("Original: ", s)
+  print("Upper: ", up)
 )()
 ```
 
-The unary form of the `=>` operator allows a simple code block with
-local scope:
+Passing a code block as the RHS operand to a tuple form of decl
+expressions in unary operator callee position generates the
+lambda's arguments list with their default values accordingly,
+and the generated enclosing call form simply passes zero args.
 
-```go
-=>
-  foo := 12.34
-  print(43.21 - foo) // prints `30.87`
-print(43.21 - foo) // compiler error: undeclared identifier 'foo'
-```
-
-The desugaring logic is as above, except the lambda has no params and
-its call has no args.
+(This is the initial desugaring, more optimally inlining such kinds of
+ad-hoc func def+call expressions happens during later code-gen passes.)
