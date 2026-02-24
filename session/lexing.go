@@ -137,8 +137,12 @@ func tokenize(srcFilePath string, curFullSrcFileContent string) (ret Toks, errs 
 		default:
 			ret = append(ret, tok)
 		case (prev != nil) && (prev.Kind == TokKindIdentOpish) && (tok.Kind == TokKindIdentOpish) &&
-			(!prev.isSep()) && (!tok.isSep()) && ((prev.Pos.Char + len(prev.Src)) == tok.Pos.Char):
+			(!tok.isSep()) && (!prev.isSep()) && ((prev.Pos.Char + len(prev.Src)) == tok.Pos.Char):
 			// multi-char op toks such as `!=` are at this point single-char toks ie. '!', '='. we stitch them together:
+			prev.Src += tok.Src
+			continue // to avoid the further-below setting of `prev = tok` in this `case`
+		case (prev != nil) && (prev.Src == ":") && (tok.Src == "="): // special case `:=`, also stitch together here on the `=` as above
+			prev.Kind = TokKindIdentOpish
 			prev.Src += tok.Src
 			continue // to avoid the further-below setting of `prev = tok` in this `case`
 		case ((tok.Kind == TokKindLitFloat) && str.Ends(tok.Src, ".")):
