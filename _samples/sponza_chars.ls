@@ -1,3 +1,5 @@
+|> := (lhs, rhs) -> rhs(lhs)
+
 sponza_path := Lua.script_dir() + "/art/Sponza/Sponza.wiscene"
 
 Wi.runProcess(main)
@@ -6,6 +8,7 @@ main := () ->
   scene := Wi.GetScene()
   cam := Wi.GetCamera()
   cam.SetFOV(45 * (Wi.math.pi / 180)) // deg2rad
+  $foo
 
   Wi.LoadModel(sponza_path)
   emitter := scene.Entity_FindByName("editorEmitter")
