@@ -1,18 +1,17 @@
-|> := (lhs, rhs) -> rhs(lhs)
+lhs |> rhs := rhs(lhs)
 
 sponza_path := Lua.script_dir() + "/art/Sponza/Sponza.wiscene"
 
 Wi.runProcess(main)
 
-main := () ->
+main := ()
   scene := Wi.GetScene()
   cam := Wi.GetCamera()
   cam.SetFOV(45 * (Wi.math.pi / 180)) // deg2rad
-  $foo
 
   Wi.LoadModel(sponza_path)
   emitter := scene.Entity_FindByName("editorEmitter")
-  ? emitter != INVALID_ENTITY
+  ?| emitter != INVALID_ENTITY
     scene.Entity_Remove(emitter)
 
   cam_transform := Wi.TransformComponent()
@@ -31,15 +30,15 @@ main := () ->
 
     camspeed := 4.567 * dt
     camera_movement := Wi.Vector()
-    ? Wi.input.Down(Lua.string.byte('W'))
+    ?| Wi.input.Down(Lua.string.byte('W'))
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, 0, camspeed))
     |? Wi.input.Down(string.byte('S'))
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, 0, -camspeed))
-    ? Wi.input.Down(string.byte('A'))
+    ?| Wi.input.Down(string.byte('A'))
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(-camspeed, 0, 0))
     |? Wi.input.Down(string.byte('D'))
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(camspeed, 0, 0))
-    ? Wi.input.Down(string.byte('Q'))
+    ?| Wi.input.Down(string.byte('Q'))
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, -camspeed, 0))
     |? Wi.input.Down(string.byte('E'))
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, camspeed, 0))
@@ -50,5 +49,5 @@ main := () ->
     cam.TransformCamera(cam_transform)
     cam.UpdateCamera()
 
-    ? Wi.IsThisEditor() && Wi.input.Press(KEYBOARD_BUTTON_ESCAPE)
+    ?| Wi.IsThisEditor() && Wi.input.Press(KEYBOARD_BUTTON_ESCAPE)
       <- Wi.ReturnToEditor()

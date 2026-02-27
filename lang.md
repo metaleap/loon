@@ -319,10 +319,10 @@ tuple types, dictionary / hashmap / hashtable types, structs / records, etc.
 some_array := [ 1, 2.0, 3.4, 5 ]
 // [ Int | Float ]
 
-some_tuple_of_4 := ( 123, 4.56, 'seven', [8, 9.0, `10`] )
+some_tuple_of_4 := ( 123, 4.56, "seven", [8, 9.0, `10`] )
 // { Int, Float, Str, [Int | Float | Str] }
 
-some_dict_aka_map := { one: 1, "two": 2.0, `the third`: '3', true: "4" }
+some_dict_aka_map := { one: 1, "two": 2.0, `the third`: "3", true: `4` }
 // { Str|Bool : Int|Float|Str }
 ```
 
@@ -393,7 +393,7 @@ print("I am ${math.random() * 100}% sure."
 Yields Lua:
 
 ```lua
-print("I am " .. tostring(math.random() * 100) .. "% sure.")
+print("I am " .. (math.random() * 100).str() .. "% sure.")
 ```
 
 ## Control flow
@@ -413,11 +413,13 @@ callee for iteration, like here below) construct respectively
 10...20 (i) -> // will call print 11x with the values 10 through 20
   print(i)
 
-1...15\2 (k) -> // will print 8x, only the odd numbers
-  print(k)
+1...15\2 (i) -> // will print 8x, only the odd numbers
+  print(i)
 
 some_dict (key, value) ->
   print(key, value)
+some_arr (item, idx) ->
+  print(idx, item)
 ```
 
 Yields Lua:
@@ -431,6 +433,9 @@ for k = 1, 15, 2 do
 end
 for key, value in pairs(some_dict) do
   print(key, value)
+end
+for idx, value in ipairs(some_arr) do
+  print(idx - 1, item)
 end
 ```
 
@@ -517,8 +522,8 @@ need to return the results of the loop.
 
 ### While-style loops
 
-are written quite similarly, with the boolean being the unary callee and the
-loop-body function receiving zero args:
+are written quite similarly, with the loop condition being the unary callee
+and the loop-body function receiving zero args:
 
 ```go
 i := 10
@@ -549,11 +554,12 @@ This example prints just the odd numbers among `[1 ... 6]`:
 my_numbers := [1 ... 6]
 my_numbers[_ % 2 == 1] print
 // alternatively, using the `~>` continue operator for more fine-grained control flow:
-my_numbers (n) -> (n%2 == 1) ? print(n) : ~>
+my_numbers (n) ->
+  (n%2 == 1) ? print(n) : ~>
 ```
 
 The former makes use of a slicing syntax sugar that ordinarily constructs a new
-filtered array, except when directly expressing an unary control-flow callee.
+filtered array, except when directly expressing the unary callee of a for-style loop.
 
 While user-declared identifiers must never be prefixed with `_`,
 any identifiers encountered that *are* so prefixed expand the surrounding
@@ -580,7 +586,7 @@ other values are neither truthy nor falsy.
 have_coins := false
 have_coins ? print("Got coins") : print("No coins")
 // alternatively, same outcome:
-print(have_coins ? "Got coins" : 'No coins')
+print(have_coins ? "Got coins" : `No coins`)
 ```
 
 The `:` else branch is optional whenever the conditional is used as a
@@ -588,7 +594,7 @@ statement instead of expression (ie. is not stored, passed or returned).
 
 ```go
 // somewhere prior was defined the nilable `obj`; now:
-obj ? print(obj.field)
+obj ? print(obj.field) // alternatively: obj?.field ?> print
 ```
 
 ## Switch
@@ -598,14 +604,14 @@ statements that check against the same value. Note that the value is only
 evaluated once. Like if statements, switches can have an else block to handle
 no matches. Comparison is done with the `==` operator.
 
-The switch statement-or-expression is syntax sugar reusing the `...` operator
-with the scrutinee in LHS operand position and a dict form (in this example,
-the indent-based, ie. brackets-and-commas-free one) of cases in the RHS operand
+The switch statement-or-expression is available via the ?.. operator with
+the scrutinee in LHS operand position and a dict form (in this example, the
+indent-based, ie. brackets-and-commas-free one) of cases in the RHS operand
 position:
 
-```go
+```swift
 name := "Dan"
-name ...
+name ?..
   "Robert":
     print("You are Robert")
   "Dan":
@@ -613,11 +619,11 @@ name ...
     print("Your name...")
     print("...it's Dan!")
   "Bob", "Rob":
-    print(`Another Robert`)
-  #_ > 3 && string.lower(_)[..3] == 'dan':
-    print('You danish?')
-  _:
-    print("Unhandled name '${_}'")
+    print("Another Robert")
+  _.len() > 3 && _[..3].lower() == "dan":
+    print("You danish?")
+  _other:
+    print("Unhandled name '${_other}'")
 ```
 
 The else branch is optional whenever the switch is used as a
@@ -709,18 +715,18 @@ Animal := // this will be embedded in the below `Pet`
   isWinged: () -> .numLegs < 4
   domesticated: Bool
   str: () ->
-    '${.numLegs}-legged${
+    "${.numLegs}-legged${
       .domesticated ? ", domesticated" : ""
-     }'
+     }"
 
 Pet := // every Pet is also an Animal:
   _: Animal { domesticated: true }
   name: Str
   needsWalking: Bool = false // or alternatively:
   // needsWalking = false
-  str: () -> 'Pet named "${.name}":
+  str: () -> `Pet named "${.name}":
     - needs walking: ${.needsWalking ? "yes" : "no"}
-    - ${.Animal.str()}'
+    - ${.Animal.str()}`
 
 Cat := // embeds Pet
   _: Pet { needsWalking: false, numLegs: 4 }
@@ -731,8 +737,8 @@ Dog := { // also embeds Pet
   chasesMailMen: Bool,
 }
 
-myCat := Cat { name: 'Felix' }
-myDog := Dog { name: 'Rufus' }
+myCat := Cat { name: `Felix` }
+myDog := Dog { name: "Rufus" }
 print(myCat.str())
 dogS := myDog.str // same as `dogS := ()->myDog.str()`
 print(dogS())
@@ -761,15 +767,26 @@ The `.` instance can also be used in a standalone function, making its usage
 valid only in method contexts:
 
 ```go
-myStr := () -> tostring(.)
-MyStruct.str := myStr // OK
+myStr := () -> (_.str())(.) // same as .str()
+MyStruct.toStr := myStr // OK
 myStr() // compile-time error
-(MyStruct {}).str() // OK
+(MyStruct {}).toStr() // OK
 ```
 
 ## Interfaces aka traits
 
-```go
+A struct type with func-typed fields becomes the interface
+/ trait of that collection of implementation instance methods.
+
+_Implementations_ of interface methods are any type's instance methods
+(by their usage of the implicit `.` instance arg), with their explicit
+args matching the interface method's params.
+
+As a result, code that expects an interface implementation will accept
+both "actual implementations" (a value of a type with matching instance
+methods) as well as any old struct with matching func-fields filled.
+
+```swift
 Expr := {
     str: () -> Str,
 }
@@ -778,11 +795,11 @@ Parser := {
 }
 
 test := (p: Parser) ->
-  expr := p.parse('1 + 2')
+  expr := p.parse("1 + 2")
   print(expr.str()) // only reached if no error above
 
 test(myParserImpl) ?! (err) ->
-  print('Error: ${err}$')
+  print("Error: ${err}$")
 ```
 
 ## Destructuring
@@ -790,10 +807,10 @@ test(myParserImpl) ?! (err) ->
 Basically similar to EcmaScript:
 
 ```go
-[one, two, ...rest] := [1, 2.0, "3", '4']
+[one, two, ...rest] := [1, 2.0, "3", `4`]
 // one is now 1, two is 2.0, rest is ["3","4"]
 {first, _, last} :=
-  { first: 'Donald', middle: 'F.', last: 'Duck' }
+  { first: "Donald", middle: "F.", last: `Duck` }
 ( zStr, ...zNums, zBool ) := ( "", 0, 0.0, false )
 // zStr is now "", zBool is false, zNums is (0, 0.0)
 ```
@@ -810,35 +827,29 @@ repetetiveness:
 
 ```go
 obj := { one: 1, two: 2, three: 3 } // initial decl
-obj = { ...obj, two: '2', three: 3.0 } // field writes
+obj = { ...obj, two: "2", three: 3.0 } // field writes
 // but there's syntax sugar for the above:
-obj .= { two: '2', three: 3.0 }
+obj .= { two: `2`, three: 3.0 }
 ```
 
-## Let-style block scope
+## Block scope & shadowing
 
-A tuple form of declaration expressions used in unary operator
-callee position, followed by a code-block in RHS operand position...
+In any code block, to establish a local sub-scope for some lines, just
+indent them together with an empty line before and after, if they're
+to be stand-alone scoped blocks. Declarations inside such blocks are
+scoped to them and not visible to subsequent outdented code lines.
+
+Because of this, shadowing identifiers is disallowed.
+
+Blocks can also be expressions, without the separating empty line:
 
 ```go
-(s := "Hola", up := string.upper(s))
-  print("Original: ", s)
-  print("Upper: ", up)
+three := // Int|Str
+  tmp := 1 + 2
+  someRandomBool() ? tmp : "three"
+
+print(Int three ? "3" : three) // type test: typename as unary operator
 ```
 
-...desugars into:
-
-```go
-((s = "Hola", up = string.upper(s)) ->
-  print("Original: ", s)
-  print("Upper: ", up)
-)()
-```
-
-Passing a code block as the RHS operand to a tuple form of decl
-expressions in unary operator callee position generates the
-lambda's arguments list with their default values accordingly,
-and the generated enclosing call form simply passes zero args.
-
-(This is the initial desugaring, more optimally inlining such kinds of
-ad-hoc func def+call expressions happens during later code-gen passes.)
+In such blocks, the block's "return value" can also be explicitly
+be returned via the `<~` operator followed by the return value.
