@@ -26,11 +26,11 @@ toggleCameraAnimation() :=
 // Gather camera proxy entities in the scene from "cam0" to "cam1", "cam2", ... "camN":
 proxies := []
   i := 0
-  (it := scene.Entity_FindByName("cam${i}")) != INVALID_ENTITY ->
+  (it := scene.Entity_FindByName("cam${i}")) != Wi.INVALID_ENTITY ->
     proxies[i] = it
     i += 1
 
-Wi.runProcess( ->
+Wi.runProcess(->
   true ->
     ?| Wi.input.Press(Wi.KEYBOARD_BUTTON_F8)
       toggleCameraAnimation()
@@ -50,7 +50,7 @@ Wi.runProcess( ->
       cam.UpdateCamera()
 
       // Advance animation state:
-      tt += scriptableCameraSpeed * getDeltaTime()
+      tt += scriptableCameraSpeed * Wi.getDeltaTime()
       ?| tt >= 1.0
         tt = 0.0
         rot += 1
@@ -60,5 +60,5 @@ Wi.runProcess( ->
     // Wait for render() tick from Engine
     // We should wait for update() normally, but Editor tends to update the camera already from update()
     //   and it would override the scrips...
-    render()
+    Wi.render()
 )

@@ -410,39 +410,40 @@ callee for iteration, like here below) construct respectively
 `[10,11,12,13,14,15,16,17,18,19,20]` and `[1,3,5,7,9,11,13,15]`:
 
 ```go
-10...20 (i) -> // will call print 11x with the values 10 through 20
-  print(i)
-
-1...15\2 (i) -> // will print 8x, only the odd numbers
-  print(i)
-
 some_dict (key, value) ->
   print(key, value)
-some_arr (item, idx) ->
-  print(idx, item)
+
+some_arr (i, item) ->
+  print(i, item)
+
+10...20 (_, n) -> // will call print 11x with the values 10 through 20
+  print(n)
+
+1...15\2 (_, n) -> // will print 8x, only the odd numbers
+  print(n)
 ```
 
 Yields Lua:
 
 ```lua
-for i = 10, 20 do
-  print(i)
-end
-for k = 1, 15, 2 do
-  print(k)
-end
 for key, value in pairs(some_dict) do
   print(key, value)
 end
 for idx, value in ipairs(some_arr) do
   print(idx - 1, item)
 end
+for i = 10, 20 do
+  print(i)
+end
+for k = 1, 15, 2 do
+  print(k)
+end
 ```
 
 Array-slicing example:
 
 ```go
-items[1..3] (item) -> print(item)
+items[1..3] (_, item) -> print(item)
 ```
 
 Yields Lua:
@@ -455,34 +456,6 @@ for _index_0 = 1 + 1, 3 do
 end
 ```
 
-Because the unary-callee syntax expects a function expression, just passing
-an identifier resolving to a function suffices for brevity and reusability:
-
-```go
-items print
-1...10\3 print
-```
-
-Yields Lua:
-
-```lua
-local _list_0 = items
-for _index_0 = 1, #_list_0 do
-  local __loon_tmp0__ = _list_0[_index_0]
-  print(__loon_tmp0__)
-end
-for __loon_tmp1__ = 1, 10, 3 do
-  print(__loon_tmp1__)
-end
-```
-
-Admittledly, in the case of function names like `print`, readability might
-occasionally actually be better with full function syntax, as in:
-
-```go
-items (each) -> print(each) // same as `items print`
-```
-
 A for-style loop can also be used as an expression. The last statement in the body of
 the for loop is coerced into an expression and appended to an accumulating
 array, if the for-style loop expression is assigned, passed, or explicitly returned.
@@ -490,7 +463,7 @@ array, if the for-style loop expression is assigned, passed, or explicitly retur
 Doubling every even number:
 
 ```go
-doubled_evens := [1...20] (i) ->
+doubled_evens := [1...20] (_, i) ->
   (i % 2) == 0 ? (i * 2) : i
 ```
 

@@ -1,6 +1,6 @@
 lhs |> rhs := rhs(lhs)
 
-sponza_path := Lua.script_dir() + "/art/Sponza/Sponza.wiscene"
+sponza_path := Wi.script_dir() + "/art/Sponza/Sponza.wiscene"
 
 Wi.runProcess(main)
 
@@ -30,17 +30,17 @@ main := ()
 
     camspeed := 4.567 * dt
     camera_movement := Wi.Vector()
-    ?| Wi.input.Down(Lua.string.byte('W'))
+    ?| Wi.input.Down('W')
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, 0, camspeed))
-    |? Wi.input.Down(string.byte('S'))
+    ?| Wi.input.Down('S')
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, 0, -camspeed))
-    ?| Wi.input.Down(string.byte('A'))
+    ?| Wi.input.Down('A')
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(-camspeed, 0, 0))
-    |? Wi.input.Down(string.byte('D'))
+    ?| Wi.input.Down('D')
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(camspeed, 0, 0))
-    ?| Wi.input.Down(string.byte('Q'))
+    ?| Wi.input.Down('Q')
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, -camspeed, 0))
-    |? Wi.input.Down(string.byte('E'))
+    ?| Wi.input.Down('E')
       camera_movement = Wi.vector.Add(camera_movement, Wi.Vector(0, camspeed, 0))
 
     camera_movement = Wi.vector.Rotate(camera_movement, cam_transform.Rotation_local) // rotate the camera movement with camera orientation, so it's relative

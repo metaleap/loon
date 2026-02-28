@@ -3,68 +3,61 @@
 //	The animation will repeat infinitely, but it will cut from last to first proxy at the end
 
 // Get the main camera:
-local cam = GetCamera()
+cam := Wi.GetCamera()
 
 // This will be the transform that we grab the camera by:
-local target = TransformComponent()
+target := Wi.TransformComponent()
 
 // Get the main scene:
-local scene = GetScene()
+scene := Wi.GetScene()
 
 // Camera speed overridable from outer scope too:
-scriptableCameraSpeed = 0.4
+scriptableCameraSpeed := 0.4
 
 // Animation state:
-local tt = 0.0
-local play = false
-local rot = 0
-ToggleCameraAnimation = function()
+tt := 0.0
+play := false
+rot := 0
+toggleCameraAnimation() :=
   tt = 0.0
-  play = not play
+  play = !play
   rot = 0
-end
 
 // Gather camera proxy entities in the scene from "cam0" to "cam1", "cam2", ... "camN":
-local proxies = {}
-local it = 0
-while true do
-  local entity = scene.Entity_FindByName('cam' .. it)
-  if entity == INVALID_ENTITY then break end
-  it = it + 1
-  proxies[it] = entity
-end
+proxies := []
+  i := 0
+  (it := scene.Entity_FindByName("cam${i}")) != Wi.INVALID_ENTITY ->
+    proxies[i] = it
+    i += 1
 
-runProcess(function()
-  while true do
+Wi.runProcess(main)
 
-    if input.Press(KEYBOARD_BUTTON_F8) then ToggleCameraAnimation() end
-    if play then
+main() :=
+  true ->
+    ?| Wi.input.Press(Wi.KEYBOARD_BUTTON_F8)
+      toggleCameraAnimation()
+
+    ?| play
       // Play animation:
-      local count = len(proxies)
+      count := proxies.len
 
       // Place main camera on spline:
-      local a = scene.Component_GetTransform(proxies[(rot - 1) % count + 1])
-      local b = scene.Component_GetTransform(proxies[rot % count + 1])
-      local c = scene.Component_GetTransform(proxies[(rot + 1) % count + 1])
-      local d = scene.Component_GetTransform(proxies[(rot + 2) % count + 1])
+      a := scene.Component_GetTransform(proxies[(rot - 1) % count + 1])
+      b := scene.Component_GetTransform(proxies[rot % count + 1])
+      c := scene.Component_GetTransform(proxies[(rot + 1) % count + 1])
+      d := scene.Component_GetTransform(proxies[(rot + 2) % count + 1])
       target.CatmullRom(a, b, c, d, tt)
       target.UpdateTransform()
       cam.TransformCamera(target)
       cam.UpdateCamera()
 
       // Advance animation state:
-      tt = tt + scriptableCameraSpeed * getDeltaTime()
-      if tt >= 1.0 then
+      tt += scriptableCameraSpeed * Wi.getDeltaTime()
+      ?| tt >= 1.0
         tt = 0.0
-        rot = rot + 1
-      end
-
-    end
+        rot += 1
 
     // Wait for render() tick from Engine
     //	We should wait for update() normally, but Editor tends to update the camera already from update()
     //		and it would overridethe scrips...
-    render()
-
-  end
-end)
+    Wi.render()
